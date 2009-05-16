@@ -6,14 +6,6 @@ require 'hpricot'
 require 'cgi'
 
 module Bahn
-	def self.autocomplete_query(term)
-		uri = "http://reiseauskunft.bahn.de/bin/ajax-getstop.exe/en?REQ0JourneyStopsS0A=1&REQ0JourneyStopsS0G=#{CGI.escape(term.to_s)}"
-		io = open(uri)
-		response_text = Iconv.iconv('utf-8', io.charset, io.read).first
-		response_json = JSON.parse(response_text.scan(/\{.*\}/).first)
-		response_json['suggestions']
-	end
-	
 	class ClockTime < Time
 		# represents a time without a date
 		def self.clock(hours, mins)
@@ -36,10 +28,10 @@ module Bahn
 		def self.find(id_or_type, opts = {})
 			case id_or_type
 				when :first
-					query = Bahn.autocomplete_query(opts[:name])
+					query = autocomplete_query(opts[:name])
 					query.size ? self.new(:autocomplete_result => query.first) : nil
 				when :all
-					query = Bahn.autocomplete_query(opts[:name])
+					query = autocomplete_query(opts[:name])
 					query.collect {|result| self.new(:autocomplete_result => result)}
 				else # assume a numeric ID
 					self.new(:id => id_or_type)
@@ -81,8 +73,16 @@ module Bahn
 		# =====
 		private
 		# =====
+		def self.autocomplete_query(term)
+			uri = "http://reiseauskunft.bahn.de/bin/ajax-getstop.exe/en?REQ0JourneyStopsS0A=1&REQ0JourneyStopsS0G=#{CGI.escape(term.to_s)}"
+			io = open(uri)
+			response_text = Iconv.iconv('utf-8', io.charset, io.read).first
+			response_json = JSON.parse(response_text.scan(/\{.*\}/).first)
+			response_json['suggestions']
+		end
+	
 		def fetch_autocomplete_result
-			populate_from_autocomplete_result(Bahn.autocomplete_query(@id).first)
+			populate_from_autocomplete_result(Bahn::Station.autocomplete_query(@id).first)
 		end
 
 		def populate_from_autocomplete_result(autocomplete_data)
