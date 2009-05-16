@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'open-uri'
 require 'json'
 require 'iconv'
@@ -199,6 +200,8 @@ module Bahn
 			end
 		end
 		
+		attr_reader :name
+		
 		def stops
 			if !@stops
 				stop_docs = traininfo_response_doc / "table.result tr[td.station]"
@@ -291,6 +294,18 @@ module Bahn
 		end
 		
 		attr_reader :station, :service
+		
+		def name
+			@station.name
+		end
+
+		def origin
+			@service.origin
+		end
+
+		def destination
+			@service.destination
+		end
 		
 		def platform
 			get_full_details if @platform.nil?
