@@ -6,7 +6,7 @@ require 'cgi'
 
 module Bahn
 	def self.autocomplete_query(term)
-		uri = "http://reiseauskunft.bahn.de/bin/ajax-getstop.exe/en?REQ0JourneyStopsS0A=1&REQ0JourneyStopsS0G=#{CGI.escape(term)}"
+		uri = "http://reiseauskunft.bahn.de/bin/ajax-getstop.exe/en?REQ0JourneyStopsS0A=1&REQ0JourneyStopsS0G=#{CGI.escape(term.to_s)}"
 		io = open(uri)
 		response_text = Iconv.iconv('utf-8', io.charset, io.read).first
 		response_json = JSON.parse(response_text.scan(/\{.*\}/).first)
@@ -24,7 +24,7 @@ module Bahn
 		end
 		
 		def inspect
-			sprintf("%02d:%02d", hour, min)
+			to_s
 		end
 		def to_s
 			sprintf("%02d:%02d", hour, min)
@@ -73,8 +73,8 @@ module Bahn
 			@y_coord
 		end
 		
-		def departures
-			DepartureBoard.new(self)
+		def departures(opts = {})
+			DepartureBoard.new(self, opts)
 		end
 		
 		# =====
@@ -93,10 +93,25 @@ module Bahn
 	end
 	
 	class DepartureBoard
+		TRANSPORT_TYPES = {
+			:ice =>0x100,
+			:ic_ec => 0x80,
+			:ir => 0x40,
+			:regional => 0x20,
+			:urban => 0x10,
+			:bus => 0x08,
+			:boat => 0x04,
+			:subway => 0x02,
+			:tram => 0x01
+		}
 		include Enumerable
-		def initialize(station)
+		def initialize(station, opts)
 			@station = station
-			@url_prefix = "http://reiseauskunft.bahn.de/bin/bhftafel.exe/en?input=#{station.id}&productsFilter=1111100000&start=1&boardType=dep&dateBegin=14.12.08&dateEnd=12.12.09&time=00:00"
+			
+			transport_types = Array(opts[:include] || TRANSPORT_TYPES.keys) - Array(opts[:exclude])
+			filter_num = transport_types.inject(0) {|sum, type| sum + (TRANSPORT_TYPES[type] || 0) }
+			filter = sprintf("%09b", filter_num)
+			@url_prefix = "http://reiseauskunft.bahn.de/bin/bhftafel.exe/en?input=#{station.id}&productsFilter=#{filter}&start=1&boardType=dep&dateBegin=14.12.08&dateEnd=12.12.09&time=00:00"
 			@departure_pages = []
 		end
 		
@@ -242,6 +257,10 @@ module Bahn
 			@destination ||= stops.last
 		end
 		
+		def inspect
+			"#<#{self.class} @name=#{@name.inspect} @origin=#{@origin.inspect} @destination=#{@destination.inspect}>"
+		end
+		
 		# =====
 		private
 		# =====
@@ -322,6 +341,10 @@ module Bahn
 		
 		def inferred_time_to_destination
 			@inferred_time_to_destination ||= departure_time_to_destination || arrival_time_to_destination
+		end
+
+		def inspect
+			"#<#{self.class} @time=#{(@departure_time.nil? || @departure_time == :none ? @arrival_time : @departure_time).inspect} @station=#{@station.name.inspect} @destination=#{service.destination.station.name.inspect}>"
 		end
 
 		# =====
