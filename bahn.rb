@@ -264,6 +264,22 @@ module Bahn
 			"#<#{self.class} @name=#{@name.inspect} @origin=#{@origin.inspect} @destination=#{@destination.inspect}>"
 		end
 		
+		def hash
+			stops.collect{|stop| stop.subhash}.hash
+		end
+		
+		def features
+			if @features.nil?
+				tr = (traininfo_response_doc / 'table.remarks tr').find {|tr| (tr % 'th').inner_text == 'Comments:'}
+				if tr
+					@features = (tr / 'td strong').collect {|elem| elem.inner_text}.uniq
+				else
+					@features = []
+				end
+			end
+			@features
+		end
+		
 		# =====
 		private
 		# =====
@@ -360,6 +376,13 @@ module Bahn
 
 		def inspect
 			"#<#{self.class} @time=#{(@departure_time.nil? || @departure_time == :none ? @arrival_time : @departure_time).inspect} @station=#{@station.name.inspect} @destination=#{service.destination.station.name.inspect}>"
+		end
+		
+		# Code identifying this stop, which can form part of the hash for the Service.
+		# Not quite suitable as a hash for this stop in its own right, as different trains
+		# at the same station at the same time will have the same hash...
+		def subhash
+			[@station.id, departure_time, arrival_time].hash
 		end
 
 		# =====
