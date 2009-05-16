@@ -6,6 +6,7 @@ require 'hpricot'
 require 'cgi'
 
 module Bahn
+	VERSION = '1.0.0'
 	class ClockTime < Time
 		# represents a time without a date
 		def self.clock(hours, mins)
