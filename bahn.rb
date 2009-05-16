@@ -24,10 +24,10 @@ module Bahn
 		end
 		
 		def inspect
-			"#{hour}:#{min}"
+			sprintf("%02d:%02d", hour, min)
 		end
 		def to_s
-			"#{hour}:#{min}"
+			sprintf("%02d:%02d", hour, min)
 		end
 	end
 	
@@ -49,7 +49,7 @@ module Bahn
 			if opts[:autocomplete_result]
 				populate_from_autocomplete_result(opts[:autocomplete_result])
 			else
-				@id = opts[:id]
+				@id = opts[:id].to_i
 				@name = opts[:name]
 				@x_coord = opts[:x_coord]
 				@y_coord = opts[:y_coord]
@@ -85,7 +85,7 @@ module Bahn
 		end
 
 		def populate_from_autocomplete_result(autocomplete_data)
-			@id = autocomplete_data['id'].scan(/\@L=(\d+)\@/).first.first
+			@id = autocomplete_data['id'].scan(/\@L=(\d+)\@/).first.first.to_i
 			@name = autocomplete_data['id'].scan(/\@O=([^\@]*)\@/).first.first
 			@x_coord = autocomplete_data['xcoord']
 			@y_coord = autocomplete_data['ycoord']
@@ -200,18 +200,18 @@ module Bahn
 					origin_departure_time ||= departure_time
 					
 					if arrival_time.nil?
-						arrival_time_from_origin = nil
+						arrival_time_from_origin = :none
 					else
 						days_passed += 1 if (!last_time.nil? && arrival_time < last_time)
-						arrival_time_from_origin = days_passed + 24*60*60 + (arrival_time - origin_departure_time)
+						arrival_time_from_origin = days_passed * 24*60*60 + (arrival_time - origin_departure_time)
 						last_time = arrival_time
 					end
 					
 					if departure_time.nil?
-						departure_time_from_origin = nil
+						departure_time_from_origin = :none
 					else
 						days_passed += 1 if (!last_time.nil? && departure_time < last_time)
-						departure_time_from_origin = days_passed + 24*60*60 + (departure_time - origin_departure_time)
+						departure_time_from_origin = days_passed * 24*60*60 + (departure_time - origin_departure_time)
 						last_time = departure_time
 					end
 	
@@ -294,7 +294,7 @@ module Bahn
 		end
 		
 		def departure_time_from_origin
-			get_full_details if !@departure_time_from_origin.nil?
+			get_full_details if @departure_time_from_origin.nil?
 			@departure_time_from_origin == :none ? nil : @departure_time_from_origin
 		end
 		
@@ -330,12 +330,12 @@ module Bahn
 		def get_full_details
 			if @arrival_time and @arrival_time != :none
 				stop = @service.stops.find {|stop|
-					stop.station.id = @station.id && stop.arrival_time == @arrival_time
+					stop.station.id == @station.id && stop.arrival_time == @arrival_time
 				}
 				@departure_time = stop.departure_time || :none
 			else
 				stop = @service.stops.find {|stop|
-					stop.station.id = @station.id && stop.departure_time == @departure_time
+					stop.station.id == @station.id && stop.departure_time == @departure_time
 				}
 				@arrival_time = stop.arrival_time || :none
 			end
