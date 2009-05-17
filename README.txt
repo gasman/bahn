@@ -1,7 +1,5 @@
 = bahn
 
-* FIX (url)
-
 == DESCRIPTION:
 
 A library for accessing train information from Deutsche Bahn in an
