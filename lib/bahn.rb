@@ -7,25 +7,34 @@ require 'cgi'
 
 module Bahn
 	VERSION = '1.0.0'
+
+	# Represents a time of day on a 24-hour clock, without implying any particular date.
 	class ClockTime < Time
-		# represents a time without a date
+		# Create a new ClockTime object for the time specified by hours and mins
 		def self.clock(hours, mins)
 			self.utc(1970, 1, 1, hours, mins, 0)
 		end
 		
+		# Parses a string of the form "hh:mm" and converts it to a ClockTime object
 		def self.parse(str)
 			if str =~ /(\d+):(\d+)/ then self.utc(1970, 1, 1, $1, $2, 0) end
 		end
 		
-		def inspect
+		def inspect # :nodoc:
 			to_s
 		end
-		def to_s
+		
+		def to_s # :nodoc:
 			sprintf("%02d:%02d", hour, min)
 		end
 	end
 	
 	class Station
+		# Finds and returns one or many Station objects. Invoked through one of the following forms:
+		# 
+		# * <tt>Bahn::Station.find(id)</tt> - returns the Station with the given ID
+		# * <tt>Bahn::Station.find(:first, :name => name)</tt> - returns the first station matching name
+		# * <tt>Bahn::Station.find(:all, :name => name)</tt> - returns an array of all stations matching name
 		def self.find(id_or_type, opts = {})
 			case id_or_type
 				when :first
@@ -39,7 +48,7 @@ module Bahn
 			end
 		end
 		
-		def initialize(opts)
+		def initialize(opts) # :nodoc:
 			if opts[:autocomplete_result]
 				populate_from_autocomplete_result(opts[:autocomplete_result])
 			else
@@ -50,23 +59,31 @@ module Bahn
 			end
 		end
 		
+		# The numeric ID of this station.
 		attr_reader :id
 
+		# Returns the station name.
 		def name
 			fetch_autocomplete_result if @name.nil?
 			@name
 		end
 
+		# Returns the X coordinate of the station; appears to be a WGS84 longitude in units of 10^-6 degrees.
 		def x_coord
 			fetch_autocomplete_result if @x_coord.nil?
 			@x_coord
 		end
 
+		# Returns the Y coordinate of the station; appears to be a WGS84 latitude in units of 10^-6 degrees.
 		def y_coord
 			fetch_autocomplete_result if @y_coord.nil?
 			@y_coord
 		end
-		
+
+		# Returns an Enumerable listing of Stop objects for all services departing from this station.
+		# The list can be filtered by transport type through the following options:
+		# * <tt>:include</tt> - One of the symbols :ice, :ic_ec, :ir, :regional, :urban, :bus, :boat, :subway, :tram, or an array of them, to determine which transport types should be included in the list
+		# * <tt>:exclude</tt> - Specifies one or more of the above transport types to be excluded from the results.
 		def departures(opts = {})
 			DepartureBoard.new(self, opts)
 		end
@@ -177,8 +194,12 @@ module Bahn
 		end
 	end
 	
+	# Represents a scheduled train (or other transportation) service. This is not specific to
+	# a particular day's train, but encompasses all trains taking this route at this
+	# time of day. When services are subject to daily or seasonal variations, each such variation
+	# is considered a Service of its own, even if they share the same service name.
 	class Service
-		def initialize(opts)
+		def initialize(opts) # :nodoc:
 			@path = opts[:path]
 			@name = opts[:name]
 			if opts[:origin_info]
@@ -201,8 +222,10 @@ module Bahn
 			end
 		end
 		
+		# The designated name for this service, if any - e.g. "ICE 692".
 		attr_reader :name
 		
+		# Returns an array of Stop objects for all the stops that this service makes.
 		def stops
 			if !@stops
 				stop_docs = traininfo_response_doc / "table.result tr[td.station]"
@@ -253,22 +276,30 @@ module Bahn
 			@stops
 		end
 		
+		# Returns the Stop object for the departure station of this service.
 		def origin
 			@origin ||= stops.first
 		end
 
+		# Returns the Stop object for the destination station of this service.
 		def destination
 			@destination ||= stops.last
 		end
 		
-		def inspect
+		def inspect # :nodoc:
 			"#<#{self.class} @name=#{@name.inspect} @origin=#{@origin.inspect} @destination=#{@destination.inspect}>"
 		end
 		
+		# Returns a hash code which will match for any two Service objects that stop at the same list of
+		# stations at the same times. (This is the nearest thing we have to a unique ID, as Deutsche Bahn
+		# do not expose unique IDs for services)
 		def hash
 			stops.collect{|stop| stop.subhash}.hash
 		end
 		
+		# Returns an array of strings indicating the features of this train, as listed as 'Comments:' on
+		# the Deutsche Bahn website; e.g. "Subject to compulsory reservation", "Sleeping-car". There
+		# doesn't seem to be a consistent format for these.
 		def features
 			if @features.nil?
 				tr = (traininfo_response_doc / 'table.remarks tr').find {|tr| (tr % 'th').inner_text == 'Comments:'}
@@ -289,8 +320,9 @@ module Bahn
 		end
 	end
 	
+	# Represents a stop made at a Station by a Service.
 	class Stop
-		def initialize(opts)
+		def initialize(opts) # :nodoc:
 			# for the following fields, use :none to mean none supplied (as opposed to not fetched yet):
 			# @arrival_time, @departure_time, @platform, @arrival_time_from_origin, @departure_time_from_origin
 
@@ -310,45 +342,62 @@ module Bahn
 			@departure_time_to_destination = opts[:departure_time_to_destination]
 		end
 		
-		attr_reader :station, :service
+		# The Station where this stop occurs.
+		attr_reader :station
+		# The Service making this stop.
+		attr_reader :service
 		
+		# The name of the station for this stop (provided as a shortcut for stop.station.name).
 		def name
 			@station.name
 		end
 
+		# The Stop object for the departure station (provided as a shortcut for stop.service.origin).
 		def origin
 			@service.origin
 		end
 
+		# The Stop object for the destination station (provided as a shortcut for stop.service.destination).
 		def destination
 			@service.destination
 		end
 		
+		# Returns the platform number or name for this stop, or nil if not specified.
 		def platform
 			get_full_details if @platform.nil?
 			@platform == :none ? nil : @platform
 		end
 		
+		# Returns the ClockTime at which the service arrives at this station, or nil if not specified
+		# (e.g. because this is the origin station for the service, or is for boarding only).
 		def arrival_time
 			get_full_details if @arrival_time.nil?
 			@arrival_time == :none ? nil : @arrival_time
 		end
 
+		# Returns the ClockTime at which the service leaves at this station, or nil if not specified
+		# (e.g. because this is the destination station for the service, or is for alighting only).
 		def departure_time
 			get_full_details if @departure_time.nil?
 			@departure_time == :none ? nil : @departure_time
 		end
 		
+		# Returns the time between departing the origin station and arriving at this station,
+		# as a number of seconds, or nil if arrival time is not specified.
 		def arrival_time_from_origin
 			get_full_details if @arrival_time_from_origin.nil?
 			@arrival_time_from_origin == :none ? nil : @arrival_time_from_origin
 		end
 		
+		# Returns the time between departing the origin station and departing from this station,
+		# as a number of seconds, or nil if departure time is not specified.
 		def departure_time_from_origin
 			get_full_details if @departure_time_from_origin.nil?
 			@departure_time_from_origin == :none ? nil : @departure_time_from_origin
 		end
 		
+		# Returns the time between arriving at this station and arriving at the destination station,
+		# as a number of seconds, or nil if arrival time is not specified.
 		def arrival_time_to_destination
 			if @arrival_time_to_destination.nil?
 				if arrival_time_from_origin == :none
@@ -360,6 +409,8 @@ module Bahn
 			@arrival_time_to_destination
 		end
 
+		# Returns the time between departing from this station and arriving at the destination station,
+		# as a number of seconds, or nil if departure time is not specified.
 		def departure_time_to_destination
 			if @departure_time_to_destination.nil?
 				if departure_time_from_origin == :none
@@ -371,18 +422,23 @@ module Bahn
 			@departure_time_to_destination
 		end
 		
+		# Returns calculated time to destination while minimising additional hits to the Deutsche Bahn website:
+		# * if the service timetable has already been fetched, use that;
+		# * if nothing relevant has been fetched yet, fetch the service timetable and use that;
+		# * if only the station timetable has been fetched, use that. This may result in an inaccurate count -
+		#   see BUGS in README.txt.
 		def inferred_time_to_destination
 			@inferred_time_to_destination ||= departure_time_to_destination || arrival_time_to_destination
 		end
 
-		def inspect
+		def inspect # :nodoc:
 			"#<#{self.class} @time=#{(@departure_time.nil? || @departure_time == :none ? @arrival_time : @departure_time).inspect} @station=#{@station.name.inspect} @destination=#{service.destination.station.name.inspect}>"
 		end
 		
 		# Code identifying this stop, which can form part of the hash for the Service.
 		# Not quite suitable as a hash for this stop in its own right, as different trains
 		# at the same station at the same time will have the same hash...
-		def subhash
+		def subhash # :nodoc:
 			[@station.id, departure_time, arrival_time].hash
 		end
 
