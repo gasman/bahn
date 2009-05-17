@@ -4,6 +4,7 @@ require 'json'
 require 'iconv'
 require 'hpricot'
 require 'cgi'
+require 'digest/sha1'
 
 module Bahn
 	VERSION = '1.0.0'
@@ -291,10 +292,17 @@ module Bahn
 		end
 		
 		# Returns a hash code which will match for any two Service objects that stop at the same list of
-		# stations at the same times. (This is the nearest thing we have to a unique ID, as Deutsche Bahn
-		# do not expose unique IDs for services)
+		# stations at the same times.
 		def hash
 			stops.collect{|stop| stop.subhash}.hash
+		end
+		
+		# Returns a hash code which will match for any two Service objects that stop at the same list of
+		# stations at the same times; like hash, but using SHA1 to make it more collision-resistant.
+		# (This is the nearest thing we have to a unique ID, as Deutsche Bahn do not expose
+		# unique IDs for services)
+		def long_hash
+			Digest::SHA1.hexdigest(stops.collect{|stop| stop.long_hash_element}.join)
 		end
 		
 		# Returns an array of strings indicating the features of this train, as listed as 'Comments:' on
@@ -440,6 +448,11 @@ module Bahn
 		# at the same station at the same time will have the same hash...
 		def subhash # :nodoc:
 			[@station.id, departure_time, arrival_time].hash
+		end
+
+		# alternative implementation, because standard Ruby hashes are probably not collision-resistant enough
+		def long_hash_element # :nodoc:
+			"[#{@station.id},#{departure_time},#{arrival_time}]"
 		end
 
 		# =====
