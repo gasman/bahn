@@ -7,7 +7,7 @@ require 'cgi'
 require 'digest/sha1'
 
 module Bahn
-	VERSION = '1.0.0'
+	VERSION = '1.0.1'
 
 	# Represents a time of day on a 24-hour clock, without implying any particular date.
 	class ClockTime < Time

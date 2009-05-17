@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{bahn}
-  s.version = "1.0.0"
+  s.version = "1.0.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Matt Westcott"]
@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.rubygems_version = %q{1.3.1}
   s.summary = %q{A library for accessing train information from Deutsche Bahn in an object-oriented way}
   s.test_files = ["test/test_bahn.rb"]
+  s.homepage = "http://github.com/gasman/bahn/tree/master"
  
   if s.respond_to? :specification_version then
     current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
