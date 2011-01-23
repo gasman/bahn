@@ -142,7 +142,7 @@ module Bahn
 				# and do not have class 'browse'
 				departure_docs = doc / 'table.result tr[td.train]:not(.browse)'
 				departure_docs.each do |departure_doc|
-					service_link = departure_doc % 'td.train a'
+					service_link = departure_doc % 'td.train:nth(2) a'
 					destination_link = departure_doc % 'td.route span.bold a'
 					(destination_id, destination_time_string), = destination_link['onclick'].scan(/^sHC\(this, '', '(\d+)','([^']*)'\)/)
 					destination_time = ClockTime.parse(destination_time_string)
