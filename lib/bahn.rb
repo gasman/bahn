@@ -7,7 +7,7 @@ require 'cgi'
 require 'digest/sha1'
 
 module Bahn
-	VERSION = '1.0.1'
+	VERSION = '1.0.2'
 
 	# Represents a time of day on a 24-hour clock, without implying any particular date.
 	class ClockTime < Time
@@ -131,7 +131,7 @@ module Bahn
 			transport_types = Array(opts[:include] || TRANSPORT_TYPES.keys) - Array(opts[:exclude])
 			filter_num = transport_types.inject(0) {|sum, type| sum + (TRANSPORT_TYPES[type] || 0) }
 			filter = sprintf("%09b", filter_num)
-			@url_prefix = "http://reiseauskunft.bahn.de/bin/bhftafel.exe/en?input=#{station.id}&productsFilter=#{filter}&start=1&boardType=dep&dateBegin=14.12.08&dateEnd=12.12.09&time=00:00"
+			@url_prefix = "http://reiseauskunft.bahn.de/bin/bhftafel.exe/en?input=#{station.id}&productsFilter=#{filter}&start=1&boardType=dep&dateBegin=12.12.10&dateEnd=10.12.11&time=00:00"
 			@departure_pages = []
 		end
 		
@@ -142,7 +142,7 @@ module Bahn
 				# and do not have class 'browse'
 				departure_docs = doc / 'table.result tr[td.train]:not(.browse)'
 				departure_docs.each do |departure_doc|
-					service_link = departure_doc % 'td.train:nth-child(1) a'
+					service_link = departure_doc % 'td.train a'
 					destination_link = departure_doc % 'td.route span.bold a'
 					(destination_id, destination_time_string), = destination_link['onclick'].scan(/^sHC\(this, '', '(\d+)','([^']*)'\)/)
 					destination_time = ClockTime.parse(destination_time_string)
